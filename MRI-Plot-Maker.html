@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MRI Plot Generator</title>
+<style>
+:root {
+  --bg:#07090f;--surface:#0d1017;--panel:#111520;
+  --border:#1c2235;--border2:#252d45;
+  --accent:#5cffc2;--accent2:#ff6b6b;--accent3:#ffd166;--adc:#b57bee;
+  --text:#e8ecf5;--muted:#4a5470;--muted2:#6b7a9e;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;}
+#app{display:flex;height:100vh;}
+#sidebar{width:296px;min-width:296px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.sb-header{padding:20px 18px 14px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#0d1017,#111a2e);}
+.sb-logo{font-size:18px;font-weight:800;letter-spacing:-0.5px;color:var(--accent);}
+.sb-logo span{color:var(--text);}
+.sb-sub{font-size:10px;color:var(--muted2);margin-top:3px;letter-spacing:1px;}
+.sb-scroll{flex:1;overflow-y:auto;padding:13px;display:flex;flex-direction:column;gap:11px;}
+.sb-scroll::-webkit-scrollbar{width:3px;}
+.sb-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.section-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:7px;}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px;}
+.drop-zone{border:2px dashed var(--border2);border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:all .2s;background:var(--panel);}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(92,255,194,.04);}
+.dz-icon{font-size:24px;margin-bottom:6px;}
+.dz-text{font-size:12px;color:var(--muted2);line-height:1.4;}
+.dz-hint{font-size:9px;color:var(--muted);margin-top:5px;}
+#fileInput{display:none;}
+#fileList{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;}
+.file-item{display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:10px;}
+.fi-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.fi-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);}
+.fi-count{font-size:9px;color:var(--muted2);flex-shrink:0;}
+.fi-del{cursor:pointer;color:var(--muted);font-size:13px;line-height:1;flex-shrink:0;}
+.fi-del:hover{color:var(--accent2);}
+.plot-types{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;}
+.pt-btn{padding:9px 4px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--muted2);font-size:10px;cursor:pointer;text-align:center;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.pt-icon{font-size:15px;}
+.pt-btn:hover{border-color:var(--accent);color:var(--text);}
+.pt-btn.active{border-color:var(--accent);background:rgba(92,255,194,.08);color:var(--accent);}
+.mode-badges{display:flex;gap:5px;flex-wrap:wrap;}
+.mode-badge{padding:4px 10px;border-radius:20px;border:1px solid var(--border2);font-size:10px;cursor:pointer;transition:all .15s;color:var(--muted2);background:var(--surface);}
+.mode-badge.t1.active{border-color:var(--accent);color:var(--accent);background:rgba(92,255,194,.08);}
+.mode-badge.t2.active{border-color:var(--accent3);color:var(--accent3);background:rgba(255,209,102,.08);}
+.mode-badge.adc.active{border-color:var(--adc);color:var(--adc);background:rgba(181,123,238,.08);}
+.ctrl-row{display:flex;align-items:center;gap:7px;margin-bottom:7px;}
+.ctrl-row label{font-size:11px;color:var(--muted2);flex:1;}
+.ctrl-row input[type=number]{width:72px;padding:4px 7px;background:var(--surface);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:11px;outline:none;}
+.ctrl-row input[type=number]:focus{border-color:var(--accent);}
+.full-input{width:100%;padding:6px 9px;background:var(--surface);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:11px;outline:none;margin-bottom:7px;}
+.full-input:focus{border-color:var(--accent);}
+.cmap-select{width:100%;padding:6px 9px;background:var(--surface);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:11px;outline:none;cursor:pointer;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
+.toggle-label{font-size:11px;color:var(--muted2);}
+.toggle{width:33px;height:18px;background:var(--border2);border-radius:9px;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;}
+.toggle.on{background:var(--accent);}
+.toggle::after{content:'';position:absolute;width:12px;height:12px;background:white;border-radius:50%;top:3px;left:3px;transition:transform .2s;}
+.toggle.on::after{transform:translateX(15px);}
+.btn-primary{width:100%;padding:11px;background:var(--accent);color:#07090f;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;}
+.btn-primary:hover{background:#80ffe0;transform:translateY(-1px);}
+.btn-primary:disabled{background:var(--muted);cursor:not-allowed;transform:none;color:#444;}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;}
+#plotTabs{display:flex;gap:2px;padding:10px 16px 0;border-bottom:1px solid var(--border);background:var(--surface);}
+.tab-btn{padding:7px 14px;border-radius:7px 7px 0 0;border:1px solid transparent;border-bottom:none;font-size:11px;cursor:pointer;transition:all .15s;color:var(--muted2);background:transparent;}
+.tab-btn.active{background:var(--panel);border-color:var(--border);color:var(--accent);border-bottom:1px solid var(--panel);margin-bottom:-1px;}
+.tab-btn:hover:not(.active){color:var(--text);}
+#canvasArea{flex:1;padding:20px;overflow:auto;display:flex;align-items:flex-start;justify-content:center;}
+.plot-wrap{background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 6px 28px rgba(0,0,0,.5);width:100%;display:none;position:relative;}
+.plot-wrap.active{display:block;}
+canvas{display:block;width:100%!important;height:auto!important;}
+#emptyState{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--muted);text-align:center;padding:40px;}
+.es-icon{font-size:50px;opacity:.35;}
+.es-title{font-size:18px;font-weight:700;color:var(--muted2);}
+.es-sub{font-size:11px;color:var(--muted);max-width:320px;line-height:1.7;}
+#statsBar{padding:8px 16px;border-top:1px solid var(--border);background:var(--surface);display:none;gap:18px;align-items:center;font-size:10px;color:var(--muted2);overflow-x:auto;flex-shrink:0;}
+.stat-item{display:flex;gap:5px;flex-shrink:0;}
+.sk{color:var(--muted);}
+.sv{color:var(--text);}
+#saveFloat{position:absolute;bottom:54px;right:18px;display:none;flex-direction:column;gap:5px;align-items:flex-end;z-index:50;}
+.save-btn{padding:8px 14px;border-radius:22px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.4);}
+.save-png{background:var(--accent);color:#07090f;border:none;}
+.save-png:hover{background:#80ffe0;transform:translateY(-1px);}
+.save-badge{font-size:9px;background:#07090f;color:var(--accent);padding:1px 5px;border-radius:7px;}
+#saveModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;}
+#saveModal.open{display:flex;}
+.modal-box{background:var(--panel);border:1px solid var(--border2);border-radius:14px;padding:28px;width:340px;text-align:center;}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:6px;color:var(--text);}
+.modal-sub{font-size:11px;color:var(--muted2);margin-bottom:20px;line-height:1.5;}
+.modal-btns{display:flex;gap:10px;justify-content:center;}
+.modal-btn{padding:10px 22px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;border:none;}
+.mbtn-png{background:var(--accent);color:#07090f;}
+.mbtn-png:hover{background:#80ffe0;}
+.mbtn-tiff{background:var(--adc);color:#07090f;}
+.mbtn-tiff:hover{background:#cf9fff;}
+.mbtn-cancel{background:var(--border2);color:var(--muted2);}
+.mbtn-cancel:hover{color:var(--text);}
+/* Draggable overlay shared style */
+.drag-overlay{position:absolute;background:rgba(255,255,255,0.95);border:1px solid #ccc;border-radius:6px;padding:8px 12px;font-family:Arial,Helvetica,sans-serif;cursor:move;box-shadow:0 2px 10px rgba(0,0,0,0.18);user-select:none;z-index:20;white-space:nowrap;}
+.drag-overlay .ov-resize{position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:se-resize;background:linear-gradient(135deg,transparent 50%,#bbb 50%);border-radius:0 0 5px 0;}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="sidebar">
+  <div class="sb-header">
+    <div class="sb-logo">MRI <span>Plot</span></div>
+    <div class="sb-sub">PARAMETRIC MAP VISUALISER</div>
+  </div>
+  <div class="sb-scroll">
+    <div>
+      <div class="section-label">MRI Mode</div>
+      <div class="mode-badges">
+        <div class="mode-badge t1 active" data-mode="T1" onclick="setMode('T1')">T₁ (ms)</div>
+        <div class="mode-badge t2" data-mode="T2" onclick="setMode('T2')">T₂ (ms)</div>
+        <div class="mode-badge adc" data-mode="ADC" onclick="setMode('ADC')">ADC ×10⁻⁴</div>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">CSV Files</div>
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="dz-icon">📂</div>
+        <div class="dz-text">Drop CSV files here or click to browse</div>
+        <div class="dz-hint">Single-column or multi-column — both supported</div>
+      </div>
+      <input type="file" id="fileInput" accept=".csv" multiple onchange="handleFiles(this.files)">
+    </div>
+    <div id="fileListCard" style="display:none">
+      <div class="section-label">Loaded Samples</div>
+      <div id="fileList"></div>
+    </div>
+    <div>
+      <div class="section-label">Plot Type</div>
+      <div class="plot-types">
+        <div class="pt-btn active" data-pt="boxplot" onclick="setPlotType('boxplot')"><div class="pt-icon">📦</div>Box Plot</div>
+        <div class="pt-btn" data-pt="heatmap" onclick="setPlotType('heatmap')"><div class="pt-icon">🔥</div>Heatmap</div>
+        <div class="pt-btn" data-pt="histogram" onclick="setPlotType('histogram')"><div class="pt-icon">📊</div>Histogram</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-label">Data Filter (raw units)</div>
+      <div class="ctrl-row"><label>Min</label><input type="number" id="filterMin" value="50" step="any"></div>
+      <div class="ctrl-row"><label>Max</label><input type="number" id="filterMax" value="5000" step="any"></div>
+      <div style="font-size:9px;color:var(--muted);margin-top:2px;" id="filterHint">T1 default: 50–5000 ms</div>
+    </div>
+    <div class="card" id="bpOptions">
+      <div class="section-label">Box Plot Options</div>
+      <div class="ctrl-row"><label>Y-axis Max <span id="bpYUnit" style="color:var(--muted)">(ms)</span></label><input type="number" id="bpYMax" value="2000" step="any"></div>
+      <div class="ctrl-row"><label>Y Ticks</label><input type="number" id="bpTicks" value="6" min="2" max="20"></div>
+      <div class="toggle-row"><span class="toggle-label">Show Outliers</span><div class="toggle" id="bpOutliers" onclick="this.classList.toggle('on')"></div></div>
+      <div class="toggle-row"><span class="toggle-label">Show Mean</span><div class="toggle on" id="bpMean" onclick="this.classList.toggle('on')"></div></div>
+    </div>
+    <div class="card" id="hmOptions" style="display:none">
+      <div class="section-label">Heatmap Options</div>
+      <div class="ctrl-row"><label>Colorbar Min</label><input type="number" id="hmCMin" value="0" step="any"></div>
+      <div class="ctrl-row"><label>Colorbar Max <span id="hmCUnit" style="color:var(--muted)">(ms)</span></label><input type="number" id="hmCMax" value="2000" step="any"></div>
+      <select class="cmap-select" id="hmCmap">
+        <option value="blackjet">Black + Jet</option>
+        <option value="hot">Hot</option>
+        <option value="viridis">Viridis</option>
+        <option value="plasma">Plasma</option>
+        <option value="cool">Cool</option>
+        <option value="grayscale">Grayscale</option>
+      </select>
+    </div>
+    <div class="card" id="histOptions" style="display:none">
+      <div class="section-label">Histogram Options</div>
+      <div class="ctrl-row"><label>Bins</label><input type="number" id="histBins" value="40" min="5" max="200"></div>
+      <div class="toggle-row"><span class="toggle-label">Normalize (density)</span><div class="toggle" id="histNorm" onclick="this.classList.toggle('on')"></div></div>
+      <div class="toggle-row"><span class="toggle-label">Show KDE</span><div class="toggle on" id="histKDE" onclick="this.classList.toggle('on')"></div></div>
+    </div>
+    <div class="card">
+      <div class="section-label">Plot Title</div>
+      <input type="text" class="full-input" id="plotTitle" placeholder="Auto-generated if empty">
+      <div class="section-label" style="margin-top:4px;">Resolution</div>
+      <select class="cmap-select" id="dpiSelect">
+        <option value="2">2× — Screen preview</option>
+        <option value="3" selected>3× — Publication (300 DPI)</option>
+        <option value="4">4× — High resolution (400 DPI)</option>
+      </select>
+    </div>
+    <button class="btn-primary" id="generateBtn" onclick="generatePlot()" disabled>Generate Plot</button>
+  </div>
+</div>
+
+<div id="main">
+  <div id="plotTabs" style="display:none"></div>
+  <div id="canvasArea">
+    <div id="emptyState">
+      <div class="es-icon">🧲</div>
+      <div class="es-title">No data loaded</div>
+      <div class="es-sub">Upload CSV files — single-column or multi-column (each column = one sample).</div>
+    </div>
+    <div class="plot-wrap" id="wrap-boxplot"><canvas id="canvas-boxplot"></canvas></div>
+    <div class="plot-wrap" id="wrap-heatmap"><canvas id="canvas-heatmap"></canvas></div>
+    <div class="plot-wrap" id="wrap-histogram" style="position:relative;">
+      <canvas id="canvas-histogram"></canvas>
+      <div id="zoomOverlay" style="display:none;position:absolute;inset:0;background:rgba(7,9,15,0.92);z-index:20;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px 20px;gap:12px;">
+        <div style="width:100%;display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:13px;font-weight:700;color:#5cffc2;">🔍 Zoom View</div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="zoomReset()" style="padding:5px 12px;background:rgba(92,255,194,0.12);border:1px solid #5cffc2;border-radius:16px;color:#5cffc2;font-size:11px;font-weight:700;cursor:pointer;">Reset</button>
+            <button onclick="closeZoom()" style="padding:5px 12px;background:rgba(255,107,107,0.12);border:1px solid #ff6b6b;border-radius:16px;color:#ff6b6b;font-size:11px;font-weight:700;cursor:pointer;">✕ Close</button>
+          </div>
+        </div>
+        <div style="font-size:10px;color:#6b7a9e;text-align:center;">Drag to pan · Scroll to zoom · Double-click to reset</div>
+        <canvas id="canvas-zoom" style="background:#fff;border-radius:8px;width:100%;max-height:calc(100% - 80px);cursor:crosshair;"></canvas>
+      </div>
+      <button id="zoomBtn" onclick="openZoom()" style="display:none;position:absolute;bottom:10px;right:10px;padding:6px 13px;background:rgba(7,9,15,0.82);border:1px solid #252d45;border-radius:18px;color:#6b7a9e;font-size:11px;font-weight:700;cursor:pointer;z-index:10;" onmouseover="this.style.borderColor='#5cffc2';this.style.color='#5cffc2'" onmouseout="this.style.borderColor='#252d45';this.style.color='#6b7a9e'">🔍 Zoom</button>
+    </div>
+  </div>
+  <div id="statsBar"></div>
+  <div id="statsOverlay" style="display:none;position:absolute;z-index:40;min-width:160px;max-width:340px;background:rgba(13,16,23,0.93);border:1px solid #252d45;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.55);user-select:none;">
+    <div id="statsOvHeader" style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px 4px;cursor:move;border-bottom:1px solid #1c2235;">
+      <span style="font-size:10px;font-weight:700;color:#5cffc2;letter-spacing:1px;">STATS</span>
+      <div style="display:flex;gap:5px;align-items:center;">
+        <select id="statsFontSize" onchange="updateStatsOverlay()" style="background:#07090f;border:1px solid #252d45;color:#6b7a9e;font-size:9px;border-radius:4px;padding:1px 3px;cursor:pointer;">
+          <option value="9">Small</option><option value="11" selected>Medium</option><option value="13">Large</option>
+        </select>
+        <div onclick="toggleStatsOverlay()" title="Hide overlay" style="cursor:pointer;color:#4a5470;font-size:13px;line-height:1;padding:2px 4px;" onmouseover="this.style.color='#ff6b6b'" onmouseout="this.style.color='#4a5470'">✕</div>
+      </div>
+    </div>
+    <div id="statsOvBody" style="padding:8px 10px;font-size:11px;line-height:1.7;color:#6b7a9e;"></div>
+    <div id="statsOvResize" style="position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:se-resize;background:linear-gradient(135deg,transparent 50%,#252d45 50%);border-radius:0 0 9px 0;"></div>
+  </div>
+  <button id="statsShowBtn" onclick="showStatsOverlay()" style="display:none;position:absolute;bottom:54px;left:18px;z-index:40;padding:6px 12px;background:rgba(13,16,23,0.88);border:1px solid #252d45;border-radius:18px;color:#6b7a9e;font-size:11px;font-weight:700;cursor:pointer;" onmouseover="this.style.borderColor='#5cffc2';this.style.color='#5cffc2'" onmouseout="this.style.borderColor='#252d45';this.style.color='#6b7a9e'">⊞ Stats</button>
+  <div id="saveFloat">
+    <button class="save-btn save-png" onclick="openSaveModal()">↓ Save Image <span class="save-badge" id="dpiBadge">300 DPI</span></button>
+  </div>
+</div>
+
+<div id="saveModal">
+  <div class="modal-box">
+    <div class="modal-title">Save Plot</div>
+    <div class="modal-sub">Choose file format.<br>TIFF is uncompressed — ideal for publications.</div>
+    <div class="modal-btns">
+      <button class="modal-btn mbtn-png" onclick="doSave('png')">PNG</button>
+      <button class="modal-btn mbtn-tiff" onclick="doSave('tiff')">TIFF</button>
+      <button class="modal-btn mbtn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS=['#2E86AB','#A23B72','#F18F01','#6A994E','#BC4B51','#8E7DBE','#F4A261','#2A9D8F','#E76F51','#264653'];
+const AF='Arial,Helvetica,sans-serif';
+const MODE_CFG={
+  T1:{label:'T\u2081',unit:'ms',filterMin:50,filterMax:5000,yMaxDisp:2000,isADC:false,hint:'T1 default: 50\u20135000 ms'},
+  T2:{label:'T\u2082',unit:'ms',filterMin:1,filterMax:100,yMaxDisp:100,isADC:false,hint:'T2 default: 1\u2013100 ms'},
+  ADC:{label:'ADC',unit:'\xD710\u207B\u2074 mm\xB2/s',filterMin:0.0001,filterMax:0.0035,yMaxDisp:35,isADC:true,hint:'ADC: 0.0001\u20130.0035 mm\xB2/s (raw)'},
+};
+function toDisp(v){return currentMode==='ADC'?v*1e4:v;}
+function el(id){return document.getElementById(id);}
+let samples={},currentMode='T1',currentPlotType='boxplot';
+// Last render data — used for re-render on save
+let _lastData={},_lastScale=3;
+
+function setMode(m){
+  currentMode=m;
+  document.querySelectorAll('.mode-badge').forEach(b=>b.classList.remove('active'));
+  document.querySelector(`.mode-badge[data-mode="${m}"]`).classList.add('active');
+  const c=MODE_CFG[m];
+  el('filterMin').value=c.filterMin;el('filterMax').value=c.filterMax;
+  el('filterHint').textContent=c.hint;
+  el('bpYMax').value=c.yMaxDisp;el('bpYUnit').textContent='('+c.unit+')';
+  el('hmCMax').value=c.yMaxDisp;el('hmCUnit').textContent='('+c.unit+')';
+}
+function setPlotType(pt){
+  currentPlotType=pt;
+  document.querySelectorAll('.pt-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector(`.pt-btn[data-pt="${pt}"]`).classList.add('active');
+  ['bpOptions','hmOptions','histOptions'].forEach(id=>el(id).style.display='none');
+  el({boxplot:'bpOptions',heatmap:'hmOptions',histogram:'histOptions'}[pt]).style.display='block';
+}
+
+// FILE HANDLING
+const dropZone=el('dropZone');
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');handleFiles(e.dataTransfer.files);});
+function handleFiles(list){
+  Array.from(list).forEach(f=>{
+    if(!f.name.toLowerCase().endsWith('.csv'))return;
+    const r=new FileReader();r.onload=e=>parseCSV(f.name,e.target.result);r.readAsText(f);
+  });
+}
+function parseCSV(filename,text){
+  const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2)return;
+  const sep=lines[0].includes('\t')?'\t':',';
+  const headers=lines[0].split(sep).map(h=>h.trim().replace(/^"|"$/g,''));
+  const row1=lines[1].split(sep);
+  const isMulti=headers.length>1&&row1.length>1;
+  if(!isMulti){
+    const isADCx4=headers[0].toLowerCase().includes('x10-4');
+    const vals=[];
+    for(let i=1;i<lines.length;i++){const v=parseFloat(lines[i].split(sep)[0]);if(!isNaN(v))vals.push(isADCx4?v*1e-4:v);}
+    samples['f__'+filename]={label:filename.replace(/\.csv$/i,'').slice(0,32),rawValues:vals};
+  } else {
+    const cols=headers.map(()=>[]);
+    for(let i=1;i<lines.length;i++){
+      const cells=lines[i].split(sep);
+      headers.forEach((_,c)=>{const v=parseFloat((cells[c]||'').replace(/^"|"$/g,''));if(!isNaN(v))cols[c].push(v);});
+    }
+    headers.forEach((h,c)=>{
+      if(!cols[c].length)return;
+      const isADCx4=h.toLowerCase().includes('x10-4');
+      samples['c__'+filename+'__'+h]={label:h.slice(0,32),rawValues:isADCx4?cols[c].map(v=>v*1e-4):cols[c]};
+    });
+  }
+  renderFileList();
+  el('generateBtn').disabled=!Object.keys(samples).length;
+}
+function renderFileList(){
+  const list=el('fileList'),card=el('fileListCard');
+  const keys=Object.keys(samples);
+  card.style.display=keys.length?'block':'none';
+  list.innerHTML='';
+  keys.forEach(k=>{
+    const s=samples[k],d=document.createElement('div');d.className='file-item';
+    d.innerHTML=`<div class="fi-dot"></div><div class="fi-name">${s.label}</div><div class="fi-count">${s.rawValues.length.toLocaleString()}</div><div class="fi-del" onclick="removeSample('${k.replace(/'/g,"\\'")}')">×</div>`;
+    list.appendChild(d);
+  });
+}
+function removeSample(k){delete samples[k];renderFileList();el('generateBtn').disabled=!Object.keys(samples).length;}
+function getFilteredData(){
+  const fMin=parseFloat(el('filterMin').value),fMax=parseFloat(el('filterMax').value);
+  const out={};
+  Object.values(samples).forEach(s=>{
+    const f=s.rawValues.filter(v=>v>=fMin&&v<=fMax).map(v=>toDisp(v));
+    if(f.length)out[s.label]=f;
+  });
+  return out;
+}
+
+// GENERATE
+function generatePlot(){
+  const data=getFilteredData();
+  if(!Object.keys(data).length){alert('No data passes the current filter.');return;}
+  _lastData=data;_lastScale=parseInt(el('dpiSelect').value)||3;
+  // Reset overlay positions on fresh generate
+  _bpLegPos=null;_bpLegFS=12;
+  _histLegPos=null;_histLegFS=12;
+  el('emptyState').style.display='none';
+  el('plotTabs').style.display='flex';
+  el('saveFloat').style.display='flex';
+  el('statsBar').style.display='flex';
+  el('dpiBadge').textContent=_lastScale*100+' DPI';
+  if(currentPlotType==='boxplot')drawBoxPlot(data,_lastScale);
+  if(currentPlotType==='heatmap')drawHeatmap(data,_lastScale);
+  if(currentPlotType==='histogram')drawHistogram(data,_lastScale);
+  switchTab(currentPlotType);
+  showStats(data);
+}
+function switchTab(type){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.plot-wrap').forEach(w=>w.classList.remove('active'));
+  const tb=el('tab-'+type),wp=el('wrap-'+type);
+  if(tb)tb.classList.add('active');if(wp)wp.classList.add('active');
+  if(el('zoomBtn'))el('zoomBtn').style.display=(type==='histogram')?'block':'none';
+}
+
+// CANVAS SETUP
+function setupCanvas(id,lW,lH,scale){
+  const c=el(id);
+  c.width=lW*scale;c.height=lH*scale;
+  c.style.width=lW+'px';c.style.height=lH+'px';
+  const ctx=c.getContext('2d');
+  ctx.scale(scale,scale);
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,lW,lH);
+  return ctx;
+}
+// Make fresh offscreen canvas (new context, no prior scale)
+function makeOffCtx(lW,lH,scale){
+  const c=document.createElement('canvas');
+  c.width=lW*scale;c.height=lH*scale;
+  const ctx=c.getContext('2d');
+  ctx.scale(scale,scale);
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,lW,lH);
+  return{canvas:c,ctx};
+}
+
+// UTILS
+function pctile(sorted,p){
+  if(!sorted.length)return 0;
+  const i=p/100*(sorted.length-1),lo=Math.floor(i),hi=Math.ceil(i);
+  return sorted[lo]+(sorted[hi]-sorted[lo])*(i-lo);
+}
+function stdev(arr){
+  const m=arr.reduce((a,b)=>a+b,0)/arr.length;
+  return Math.sqrt(arr.reduce((s,v)=>s+(v-m)**2,0)/arr.length);
+}
+function niceNum(v,isADC){
+  if(isADC)return parseFloat(v.toFixed(2)).toString();
+  return v%1===0?v.toString():v.toFixed(1);
+}
+function niceAxisNum(v,isADC){
+  if(Math.abs(v)<1e-9)return'0';
+  if(isADC){const r=Math.round(v*2)/2;return r%1===0?r.toString():r.toFixed(1);}
+  if(Math.abs(v)>=10)return Math.round(v).toString();
+  const r=Math.round(v*2)/2;return r%1===0?r.toString():r.toFixed(1);
+}
+function wrapText(ctx,text,x,y,maxW,lh){
+  const words=text.split(/[\s_\-\/]+/);let line='',lines=[];
+  words.forEach(w=>{const t=line?line+' '+w:w;if(ctx.measureText(t).width>maxW&&line){lines.push(line);line=w;}else line=t;});
+  if(line)lines.push(line);
+  lines.forEach((l,i)=>ctx.fillText(l,x,y+i*lh));
+  return lines.length;
+}
+// Measure text width on a temp canvas
+function measureW(text,font){
+  const c=document.createElement('canvas').getContext('2d');c.font=font;return c.measureText(text).width;
+}
+
+// ═══════════════════════════════════════════════════════
+// DRAGGABLE OVERLAY HELPER
+// Creates a white card overlay on wrapEl that the user can drag/resize-font
+// onMoved(cssX,cssY) called on drag; onFontChange(fs) called on resize
+// Returns the overlay element
+// ═══════════════════════════════════════════════════════
+function makeDragOverlay(wrapEl, initCssX, initCssY, initFS, buildContent, onMoved, onFontSize){
+  const old=wrapEl.querySelector('.drag-overlay');if(old)old.remove();
+  const ov=document.createElement('div');ov.className='drag-overlay';
+  Object.assign(ov.style,{left:initCssX+'px',top:initCssY+'px',fontSize:initFS+'px'});
+  function rebuild(){ov.querySelectorAll(':not(.ov-resize)').forEach(n=>n.remove());buildContent(ov,initFS);ov.style.fontSize=initFS+'px';}
+  rebuild();
+  const rh=document.createElement('div');rh.className='ov-resize';ov.appendChild(rh);
+
+  // Drag
+  let drag=false,ox=0,oy=0;
+  ov.addEventListener('mousedown',e=>{if(e.target===rh)return;drag=true;const r=ov.getBoundingClientRect();ox=e.clientX-r.left;oy=e.clientY-r.top;ov.style.right='';ov.style.bottom='';e.preventDefault();});
+  document.addEventListener('mousemove',e=>{
+    if(!drag)return;
+    const pr=wrapEl.getBoundingClientRect();
+    const nx=e.clientX-pr.left-ox,ny=e.clientY-pr.top-oy;
+    ov.style.left=nx+'px';ov.style.top=ny+'px';
+    if(onMoved)onMoved(nx,ny);
+  });
+  document.addEventListener('mouseup',()=>{drag=false;});
+
+  // Resize = font size change via corner drag
+  let res=false,ry0=0,fs0=12;
+  rh.addEventListener('mousedown',e=>{res=true;ry0=e.clientY;fs0=initFS;e.stopPropagation();e.preventDefault();});
+  document.addEventListener('mousemove',e=>{
+    if(!res)return;
+    initFS=Math.max(8,Math.min(24,Math.round(fs0+(e.clientY-ry0)/5)));
+    rebuild();
+    if(onFontSize)onFontSize(initFS);
+  });
+  document.addEventListener('mouseup',()=>{res=false;});
+  wrapEl.appendChild(ov);
+  return ov;
+}
+
+// ═══════════════════════════════════════════════════════
+// BOX PLOT LEGEND — state
+// ═══════════════════════════════════════════════════════
+let _bpLegPos=null; // {cssX,cssY} relative to wrap-boxplot
+let _bpLegFS=12;
+
+// Draw legend box directly onto a canvas context at logical coords lx,ly
+function _bpDrawLegendCtx(ctx,lx,ly,showMean,fs){
+  const items=[{col:'#c0392b',label:'Median',line:true}];
+  if(showMean)items.push({col:'#27ae60',label:'Mean',tri:true});
+  const rowH=fs+8,padX=9,padY=6;
+  let maxLW=0;
+  items.forEach(it=>{const w=measureW(it.label,`${fs}px ${AF}`);if(w>maxLW)maxLW=w;});
+  const bW=18+6+maxLW+padX*2,bH=items.length*rowH+padY*2;
+  ctx.fillStyle='rgba(255,255,255,0.95)';ctx.strokeStyle='#bbb';ctx.lineWidth=0.8;
+  ctx.fillRect(lx,ly,bW,bH);ctx.strokeRect(lx,ly,bW,bH);
+  items.forEach((item,i)=>{
+    const iy=ly+padY+i*rowH+rowH/2,ix=lx+padX;
+    if(item.line){ctx.fillStyle=item.col;ctx.fillRect(ix,iy-1.5,18,3);}
+    else{ctx.fillStyle=item.col;ctx.beginPath();ctx.moveTo(ix+9,iy-6);ctx.lineTo(ix+18,iy+5);ctx.lineTo(ix,iy+5);ctx.closePath();ctx.fill();}
+    ctx.fillStyle='#222';ctx.font=`${fs}px ${AF}`;ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(item.label,ix+18+6,iy);
+  });
+  return{bW,bH};
+}
+
+// Build items for overlay
+function _bpLegContent(ov,fs,showMean){
+  const items=[{col:'#c0392b',label:'Median',line:true}];
+  if(showMean)items.push({col:'#27ae60',label:'Mean',tri:true});
+  items.forEach(item=>{
+    const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:7px;margin-bottom:4px;';
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('width','18');svg.setAttribute('height',String(fs+2));svg.style.flexShrink='0';
+    if(item.line){const r=document.createElementNS('http://www.w3.org/2000/svg','rect');r.setAttribute('x','0');r.setAttribute('y',String((fs+2)/2-1.5));r.setAttribute('width','18');r.setAttribute('height','3');r.setAttribute('fill',item.col);svg.appendChild(r);}
+    else{const p=document.createElementNS('http://www.w3.org/2000/svg','polygon');p.setAttribute('points',`9,0 18,${fs+2} 0,${fs+2}`);p.setAttribute('fill',item.col);svg.appendChild(p);}
+    const lbl=document.createElement('span');lbl.textContent=item.label;lbl.style.color='#222';
+    row.appendChild(svg);row.appendChild(lbl);ov.appendChild(row);
+  });
+  const last=ov.querySelector('div:last-of-type');if(last)last.style.marginBottom='0';
+}
+
+// ═══════════════════════════════════════════════════════
+// BOX PLOT — core drawing function
+// Draws onto a given ctx at logical scale
+// lW/lH are logical dimensions
+// Returns {lW,lH,ML,MT,PW,PH,showMean} for legend placement
+// ═══════════════════════════════════════════════════════
+function _drawBoxPlotCore(ctx,data,lW,lH,ML,MR,MT,MB){
+  const cfg=MODE_CFG[currentMode],isADC=cfg.isADC;
+  const yMaxInput=parseFloat(el('bpYMax').value);
+  const yMax=isNaN(yMaxInput)||yMaxInput<=0?cfg.yMaxDisp:yMaxInput;
+  const nTicks=Math.max(2,parseInt(el('bpTicks').value)||6);
+  const showMean=el('bpMean').classList.contains('on');
+  const showOut=el('bpOutliers').classList.contains('on');
+  const titleStr=el('plotTitle').value||`${cfg.label} Distribution (${cfg.unit})`;
+  const labels=Object.keys(data);
+  const PW=lW-ML-MR,PH=lH-MT-MB;
+  const toY=v=>MT+PH-Math.max(0,Math.min(1,v/yMax))*PH;
+  const ticks=Array.from({length:nTicks},(_,i)=>i*yMax/(nTicks-1));
+
+  // Grid
+  ctx.strokeStyle='#ececec';ctx.lineWidth=0.7;
+  ticks.forEach(t=>{const y=toY(t);ctx.beginPath();ctx.moveTo(ML,y);ctx.lineTo(ML+PW,y);ctx.stroke();});
+
+  // Axes
+  ctx.strokeStyle='#2a2a2a';ctx.lineWidth=1.6;
+  ctx.beginPath();ctx.moveTo(ML,MT);ctx.lineTo(ML,MT+PH);ctx.lineTo(ML+PW,MT+PH);ctx.stroke();
+
+  // Y tick marks + numbers
+  ctx.fillStyle='#222';ctx.font=`12px ${AF}`;ctx.textAlign='right';ctx.textBaseline='middle';
+  ticks.forEach(t=>{
+    const y=toY(t);
+    ctx.strokeStyle='#555';ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.moveTo(ML-4,y);ctx.lineTo(ML,y);ctx.stroke();
+    ctx.fillText(niceAxisNum(t,isADC),ML-6,y);
+  });
+
+  // Y axis label — rotated, placed tightly left of tick numbers
+  // Measure widest tick to know how far left to go
+  let maxTW=0;ticks.forEach(t=>{const w=measureW(niceAxisNum(t,isADC),`12px ${AF}`);if(w>maxTW)maxTW=w;});
+  // Centre of rotated text = ML - tickMark(4) - gap(5) - tickLabelW - gap(6) - halfFontH(7)
+  const yLblCx=ML-4-5-maxTW-6;
+  ctx.save();
+  ctx.translate(Math.max(7,yLblCx),MT+PH/2);ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`bold 13px ${AF}`;ctx.fillStyle='#111';
+  ctx.fillText(isADC?`ADC (\xD710\u207B\u2074 mm\xB2/s)`:`${cfg.label} (ms)`,0,0);
+  ctx.restore();
+
+  // X sample name labels — right below axis line
+  const xNameY=MT+PH+6;
+  const step=PW/labels.length,bw=Math.min(60,step*0.48);
+  labels.forEach((lbl,i)=>{
+    ctx.fillStyle='#222';ctx.font=`bold 11px ${AF}`;ctx.textAlign='center';ctx.textBaseline='top';
+    wrapText(ctx,lbl,ML+step*i+step/2,xNameY,step*0.92,13);
+  });
+
+  // X axis "Samples" title — just below sample names (reserve 2 lines = 26px, then 5px gap)
+  const xTitleY=xNameY+26+5;
+  ctx.font=`bold 13px ${AF}`;ctx.fillStyle='#111';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('Samples',ML+PW/2,xTitleY);
+
+  // Boxes
+  labels.forEach((lbl,i)=>{
+    const sorted=[...data[lbl]].sort((a,b)=>a-b);
+    const n=sorted.length,q1=pctile(sorted,25),q3=pctile(sorted,75);
+    const med=pctile(sorted,50),mean=sorted.reduce((a,b)=>a+b,0)/n;
+    const iqr=q3-q1,wLo=Math.max(sorted[0],q1-1.5*iqr),wHi=Math.min(sorted[n-1],q3+1.5*iqr);
+    const cx=ML+step*i+step/2,col=COLORS[i%COLORS.length];
+    const cy=v=>toY(Math.max(0,Math.min(v,yMax)));
+    // Whiskers
+    ctx.strokeStyle=col;ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(cx,cy(wLo));ctx.lineTo(cx,cy(q1));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx,cy(q3));ctx.lineTo(cx,cy(wHi));ctx.stroke();
+    [wLo,wHi].forEach(w=>{ctx.beginPath();ctx.moveTo(cx-bw*.3,cy(w));ctx.lineTo(cx+bw*.3,cy(w));ctx.stroke();});
+    const bx=cx-bw/2,byTop=cy(q3),byBot=cy(q1),bh=byBot-byTop;
+    ctx.fillStyle=col+'22';ctx.fillRect(bx,byTop,bw,bh);
+    // Median
+    const medYc=Math.max(byTop+1.5,Math.min(byBot-1.5,cy(med)));
+    ctx.save();ctx.beginPath();ctx.rect(bx,byTop,bw,bh);ctx.clip();ctx.fillStyle='#c0392b';ctx.fillRect(bx,medYc-1.5,bw,3);ctx.restore();
+    // Mean
+    if(showMean){
+      const mYc=Math.max(byTop+7,Math.min(byBot-6,cy(mean)));
+      ctx.save();ctx.beginPath();ctx.rect(bx,byTop,bw,bh);ctx.clip();ctx.fillStyle='#27ae60';
+      ctx.beginPath();ctx.moveTo(cx,mYc-6);ctx.lineTo(cx+5.5,mYc+4);ctx.lineTo(cx-5.5,mYc+4);ctx.closePath();ctx.fill();ctx.restore();
+    }
+    ctx.strokeStyle=col;ctx.lineWidth=1.8;ctx.strokeRect(bx,byTop,bw,bh);
+    if(showOut)sorted.filter(v=>v<wLo||v>wHi).forEach(v=>{ctx.fillStyle=col+'99';ctx.beginPath();ctx.arc(cx,cy(v),2.2,0,Math.PI*2);ctx.fill();});
+  });
+
+  // Title
+  ctx.fillStyle='#111';ctx.font=`bold 15px ${AF}`;ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText(titleStr,lW/2,8);
+
+  return{PW,PH,showMean,step,ML,MT};
+}
+
+function drawBoxPlot(data,scale){
+  const cfg=MODE_CFG[currentMode];
+  const labels=Object.keys(data);
+  // Compute ML dynamically from tick widths
+  const yMaxInput=parseFloat(el('bpYMax').value);
+  const yMax=isNaN(yMaxInput)||yMaxInput<=0?cfg.yMaxDisp:yMaxInput;
+  const nTicks=Math.max(2,parseInt(el('bpTicks').value)||6);
+  const ticks=Array.from({length:nTicks},(_,i)=>i*yMax/(nTicks-1));
+  let maxTW=0;ticks.forEach(t=>{const w=measureW(niceAxisNum(t,cfg.isADC),`12px ${AF}`);if(w>maxTW)maxTW=w;});
+  // ML = tickMark(4)+gap(5)+tickLabel+gap(6)+yLabelHalfH(7) + margin(4) = maxTW+26
+  const ML=Math.ceil(maxTW)+30,MR=28,MT=42,MB=58;
+  const perBox=Math.max(90,Math.min(150,820/labels.length));
+  const lW=Math.max(700,labels.length*perBox+ML+MR);
+  const lH=500;
+
+  const ctx=setupCanvas('canvas-boxplot',lW,lH,scale);
+  el('wrap-boxplot').style.maxWidth=lW+'px';
+
+  const{PW,PH,showMean}=_drawBoxPlotCore(ctx,data,lW,lH,ML,MR,MT,MB);
+
+  // Default legend position: top-right of plot area
+  if(!_bpLegPos){
+    // Compute legend box width to position it
+    let maxLW=0;
+    [{label:'Median'},{label:'Mean'}].forEach(it=>{const w=measureW(it.label,`${_bpLegFS}px ${AF}`);if(w>maxLW)maxLW=w;});
+    const legW=18+6+maxLW+9*2;
+    _bpLegPos={lx:lW-legW-20,ly:MT+12};
+  }
+
+  // Draw legend on canvas
+  _bpDrawLegendCtx(ctx,_bpLegPos.lx,_bpLegPos.ly,showMean,_bpLegFS);
+
+  // HTML overlay for drag/resize
+  const wrap=el('wrap-boxplot');
+  const displayW=wrap.getBoundingClientRect().width||lW;
+  const f=displayW/lW;
+  const initCssX=_bpLegPos.lx*f,initCssY=_bpLegPos.ly*f;
+
+  makeDragOverlay(wrap,initCssX,initCssY,_bpLegFS,
+    (ov,fs)=>{_bpLegContent(ov,fs,showMean);},
+    (cssX,cssY)=>{
+      // Sync logical position
+      const pr=el('wrap-boxplot').getBoundingClientRect();
+      const f2=pr.width/lW;
+      _bpLegPos={lx:cssX/f2,ly:cssY/f2};
+      // Redraw canvas with updated position
+      const{canvas:off,ctx:octx}=makeOffCtx(lW,lH,scale);
+      _drawBoxPlotCore(octx,data,lW,lH,ML,MR,MT,MB);
+      _bpDrawLegendCtx(octx,_bpLegPos.lx,_bpLegPos.ly,showMean,_bpLegFS);
+      const live=el('canvas-boxplot');
+      const lctx=live.getContext('2d');lctx.setTransform(1,0,0,1,0,0);lctx.drawImage(off,0,0);
+    },
+    (fs)=>{
+      _bpLegFS=fs;
+      // Redraw canvas with new font size
+      const pr=el('wrap-boxplot').getBoundingClientRect();
+      const{canvas:off,ctx:octx}=makeOffCtx(lW,lH,scale);
+      _drawBoxPlotCore(octx,data,lW,lH,ML,MR,MT,MB);
+      _bpDrawLegendCtx(octx,_bpLegPos.lx,_bpLegPos.ly,showMean,_bpLegFS);
+      const live=el('canvas-boxplot');
+      const lctx=live.getContext('2d');lctx.setTransform(1,0,0,1,0,0);lctx.drawImage(off,0,0);
+    }
+  );
+
+  // Store for save
+  el('canvas-boxplot')._bpParams={data,lW,lH,ML,MR,MT,MB,scale,showMean};
+}
+
+// ═══════════════════════════════════════════════════════
+// COLORMAP
+// ═══════════════════════════════════════════════════════
+function cmapColor(t,name){
+  t=Math.max(0,Math.min(1,t));let r,g,b;
+  switch(name){
+    case 'blackjet':
+      if(t===0){r=g=b=0;}else if(t<.125){r=0;g=0;b=.5+t*4;}else if(t<.375){r=0;g=(t-.125)*4;b=1;}else if(t<.625){r=(t-.375)*4;g=1;b=1-(t-.375)*4;}else if(t<.875){r=1;g=1-(t-.625)*4;b=0;}else{r=1-(t-.875)*4;g=0;b=0;}break;
+    case 'hot':r=Math.min(1,t*3);g=Math.min(1,Math.max(0,t*3-1));b=Math.min(1,Math.max(0,t*3-2));break;
+    case 'cool':r=t;g=1-t;b=1;break;
+    case 'viridis':{const vr=[0.267,0.283,0.278,0.259,0.231,0.198,0.163,0.130,0.102,0.082,0.076,0.085,0.110,0.153,0.212,0.286,0.374,0.477,0.591,0.993],vg=[0.005,0.054,0.105,0.155,0.205,0.254,0.302,0.349,0.396,0.443,0.492,0.542,0.591,0.639,0.685,0.728,0.766,0.798,0.824,0.906],vb=[0.329,0.396,0.452,0.501,0.541,0.571,0.591,0.601,0.601,0.593,0.576,0.550,0.516,0.474,0.424,0.367,0.305,0.241,0.178,0.144];const vi=Math.min(18,Math.floor(t*19)),vf=t*19-vi,vn=Math.min(19,vi+1);r=vr[vi]+(vr[vn]-vr[vi])*vf;g=vg[vi]+(vg[vn]-vg[vi])*vf;b=vb[vi]+(vb[vn]-vb[vi])*vf;break;}
+    case 'plasma':{const pr=[0.050,0.103,0.156,0.212,0.271,0.332,0.394,0.455,0.515,0.572,0.627,0.682,0.736,0.788,0.837,0.882,0.924,0.960,0.989,0.988],pg=[0.030,0.027,0.028,0.034,0.044,0.059,0.078,0.101,0.127,0.156,0.187,0.220,0.253,0.287,0.322,0.361,0.405,0.455,0.513,0.615],pb=[0.527,0.591,0.647,0.697,0.740,0.773,0.798,0.813,0.820,0.820,0.812,0.797,0.776,0.749,0.716,0.676,0.628,0.573,0.507,0.262];const pi=Math.min(18,Math.floor(t*19)),pf=t*19-pi,pn=Math.min(19,pi+1);r=pr[pi]+(pr[pn]-pr[pi])*pf;g=pg[pi]+(pg[pn]-pg[pi])*pf;b=pb[pi]+(pb[pn]-pb[pi])*pf;break;}
+    default:r=g=b=t;
+  }
+  return`rgb(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)})`;
+}
+
+// ═══════════════════════════════════════════════════════
+// HEATMAP
+// ═══════════════════════════════════════════════════════
+function drawHeatmap(data,scale){
+  const labels=Object.keys(data);
+  const cfg=MODE_CFG[currentMode],isADC=cfg.isADC;
+  const pcts=[10,25,50,75,90];
+  const vMin=parseFloat(el('hmCMin').value)||0;
+  const vMax=parseFloat(el('hmCMax').value)||cfg.yMaxDisp;
+  const cmap=el('hmCmap').value;
+  const titleStr=el('plotTitle').value||`Distribution Heatmap \u2014 ${cfg.label} (${cfg.unit})`;
+
+  const CW=Math.max(110,Math.min(160,900/labels.length)),CH=64;
+  const MED_H=20,MEAN_H=20,ROW_GAP=3,TOP_PAD=6;
+  const STATS_H=MED_H+MEAN_H+ROW_GAP+TOP_PAD;
+
+  // Measure pct label widths for ML
+  let pctMaxW=0;pcts.forEach(p=>{const w=measureW(`${p}th`,`bold 11px ${AF}`);if(w>pctMaxW)pctMaxW=w;});
+  // ML: 'Percentiles' rotated halfH(7)+gap(5)+pctLabel+gap(6) = pctMaxW+18
+  const ML=Math.ceil(pctMaxW)+22;
+
+  // Measure colorbar tick widths for MR
+  let cbTkMaxW=0;[0,.25,.5,.75,1].forEach(t=>{const val=vMin+(vMax-vMin)*t;const w=measureW(niceNum(val,isADC),`10px ${AF}`);if(w>cbTkMaxW)cbTkMaxW=w;});
+  // MR: cbGap(12)+cbW(14)+tickLine(3)+gap(5)+cbTkMaxW+gap(7)+rotatedTitleHalfH(7)
+  const MR=Math.ceil(12+14+3+5+cbTkMaxW+7+7)+2;
+
+  const MT=42+STATS_H,MB=46;
+  const GW=CW*labels.length,GH=CH*pcts.length;
+  const lW=ML+GW+MR,lH=MT+GH+MB;
+
+  const ctx=setupCanvas('canvas-heatmap',lW,lH,scale);
+  el('wrap-heatmap').style.maxWidth=lW+'px';
+
+  const hmData=labels.map(lbl=>{const s=[...data[lbl]].sort((a,b)=>a-b);return pcts.map(p=>pctile(s,p));});
+  const medians=labels.map(lbl=>{const s=[...data[lbl]].sort((a,b)=>a-b);return pctile(s,50);});
+  const means=labels.map(lbl=>{const d=data[lbl];return d.reduce((a,b)=>a+b,0)/d.length;});
+
+  // Med/Mean boxes ABOVE grid
+  labels.forEach((lbl,i)=>{
+    const boxW=CW-6,boxX=ML+i*CW+3;
+    const medBoxY=MT-TOP_PAD-MEAN_H-ROW_GAP-MED_H;
+    ctx.fillStyle='rgba(46,134,171,0.18)';ctx.strokeStyle='#2E86AB';ctx.lineWidth=0.8;
+    ctx.fillRect(boxX,medBoxY,boxW,MED_H);ctx.strokeRect(boxX,medBoxY,boxW,MED_H);
+    ctx.font=`bold 10px ${AF}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#2E86AB';
+    ctx.fillText(`Med: ${niceNum(medians[i],isADC)}`,ML+i*CW+CW/2,medBoxY+MED_H/2);
+    const meanBoxY=medBoxY+MED_H+ROW_GAP;
+    ctx.fillStyle='rgba(162,59,114,0.15)';ctx.strokeStyle='#A23B72';ctx.lineWidth=0.8;
+    ctx.fillRect(boxX,meanBoxY,boxW,MEAN_H);ctx.strokeRect(boxX,meanBoxY,boxW,MEAN_H);
+    ctx.fillStyle='#A23B72';
+    ctx.fillText(`Mean: ${niceNum(means[i],isADC)}`,ML+i*CW+CW/2,meanBoxY+MEAN_H/2);
+  });
+
+  // Grid cells
+  labels.forEach((lbl,i)=>{
+    pcts.forEach((p,j)=>{
+      const val=hmData[i][j],t=(val-vMin)/(vMax-vMin);
+      ctx.fillStyle=cmapColor(t,cmap);ctx.fillRect(ML+i*CW,MT+j*CH,CW,CH);
+      ctx.fillStyle=t>0.55?'#111':'#fff';ctx.font=`bold 12px ${AF}`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(niceNum(val,isADC),ML+i*CW+CW/2,MT+j*CH+CH/2);
+    });
+    // X label tight below grid
+    ctx.fillStyle='#222';ctx.font=`bold 11px ${AF}`;ctx.textAlign='center';ctx.textBaseline='top';
+    wrapText(ctx,lbl,ML+i*CW+CW/2,MT+GH+7,CW-6,13);
+  });
+
+  // Cell borders
+  ctx.strokeStyle='rgba(255,255,255,0.55)';ctx.lineWidth=0.8;
+  labels.forEach((_,i)=>pcts.forEach((_,j)=>ctx.strokeRect(ML+i*CW+0.5,MT+j*CH+0.5,CW-1,CH-1)));
+  ctx.strokeStyle='#bbb';ctx.lineWidth=1;ctx.strokeRect(ML,MT,GW,GH);
+
+  // Y percentile labels — tight left of grid
+  ctx.fillStyle='#333';ctx.font=`bold 11px ${AF}`;ctx.textAlign='right';ctx.textBaseline='middle';
+  pcts.forEach((p,j)=>ctx.fillText(`${p}th`,ML-6,MT+j*CH+CH/2));
+
+  // Y axis title — rotated, tight left of pct labels
+  // Right edge of pct labels = ML-6; left edge = ML-6-pctMaxW; centre = that - gap(5) - halfH(6)
+  {
+    const cx=ML-6-pctMaxW-5;
+    ctx.save();ctx.translate(Math.max(7,cx),MT+GH/2);ctx.rotate(-Math.PI/2);
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`bold 12px ${AF}`;ctx.fillStyle='#111';
+    ctx.fillText('Percentiles',0,0);ctx.restore();
+  }
+
+  // Colorbar
+  const cbX=ML+GW+12,cbW=14,cbH=GH;
+  for(let i=0;i<cbH;i++){ctx.fillStyle=cmapColor(1-i/cbH,cmap);ctx.fillRect(cbX,MT+i,cbW,1.5);}
+  ctx.strokeStyle='#aaa';ctx.lineWidth=0.8;ctx.strokeRect(cbX,MT,cbW,cbH);
+
+  // Colorbar tick labels — measure actual max width
+  let realCbTkW=0;
+  [0,.25,.5,.75,1].forEach(t=>{const val=vMin+(vMax-vMin)*t;const w=measureW(niceNum(val,isADC),`10px ${AF}`);if(w>realCbTkW)realCbTkW=w;});
+  ctx.fillStyle='#333';ctx.font=`10px ${AF}`;ctx.textAlign='left';ctx.textBaseline='middle';
+  [0,.25,.5,.75,1].forEach(t=>{
+    const val=vMin+(vMax-vMin)*t,y=MT+cbH*(1-t);
+    ctx.strokeStyle='#aaa';ctx.lineWidth=0.7;ctx.beginPath();ctx.moveTo(cbX+cbW,y);ctx.lineTo(cbX+cbW+3,y);ctx.stroke();
+    ctx.fillText(niceNum(val,isADC),cbX+cbW+5,y);
+  });
+
+  // Colorbar axis title — rotated, tight right of tick labels
+  // Right edge of tick labels = cbX+cbW+3+5+realCbTkW; add gap(5)+halfH(6)
+  {
+    const cx=cbX+cbW+3+5+realCbTkW+6;
+    ctx.save();ctx.translate(cx,MT+cbH/2);ctx.rotate(Math.PI/2);
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`bold 11px ${AF}`;ctx.fillStyle='#333';
+    ctx.fillText(isADC?`ADC (\xD710\u207B\u2074 mm\xB2/s)`:`${cfg.label} (ms)`,0,0);ctx.restore();
+  }
+
+  // Title
+  ctx.fillStyle='#111';ctx.font=`bold 15px ${AF}`;ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText(titleStr,lW/2,10);
+}
+
+// ═══════════════════════════════════════════════════════
+// HISTOGRAM
+// ═══════════════════════════════════════════════════════
+let _histLegPos=null;
+let _histLegFS=12;
+
+function _histLegContent(ov,fs,labels){
+  labels.forEach((lbl,li)=>{
+    const col=COLORS[li%COLORS.length];
+    const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:7px;margin-bottom:4px;';
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('width','14');svg.setAttribute('height',String(fs+2));svg.style.flexShrink='0';
+    const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');rect.setAttribute('x','0');rect.setAttribute('y','0');rect.setAttribute('width','14');rect.setAttribute('height',String(fs+2));rect.setAttribute('fill',col+'55');rect.setAttribute('stroke',col);rect.setAttribute('stroke-width','1');svg.appendChild(rect);
+    const sp=document.createElement('span');sp.textContent=lbl.length>22?lbl.slice(0,22)+'…':lbl;sp.style.color='#222';
+    row.appendChild(svg);row.appendChild(sp);ov.appendChild(row);
+  });
+  const last=ov.querySelector('div:last-of-type');if(last)last.style.marginBottom='0';
+}
+
+function _drawHistLegendCtx(ctx,lx,ly,labels,fs){
+  const rowH=fs+8,padX=9,padY=6;
+  let maxLW=0;labels.forEach(lbl=>{const w=measureW(lbl.length>22?lbl.slice(0,22)+'…':lbl,`${fs}px ${AF}`);if(w>maxLW)maxLW=w;});
+  const bW=14+7+maxLW+padX*2,bH=labels.length*rowH+padY*2;
+  ctx.fillStyle='rgba(255,255,255,0.95)';ctx.strokeStyle='#bbb';ctx.lineWidth=0.8;
+  ctx.fillRect(lx,ly,bW,bH);ctx.strokeRect(lx,ly,bW,bH);
+  labels.forEach((lbl,li)=>{
+    const col=COLORS[li%COLORS.length],iy=ly+padY+li*rowH+rowH/2,ix=lx+padX;
+    ctx.fillStyle=col+'55';ctx.strokeStyle=col;ctx.lineWidth=1;ctx.fillRect(ix,iy-fs/2,14,fs+2);ctx.strokeRect(ix,iy-fs/2,14,fs+2);
+    ctx.fillStyle='#222';ctx.font=`${fs}px ${AF}`;ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(lbl.length>22?lbl.slice(0,22)+'…':lbl,ix+14+7,iy);
+  });
+  return{bW,bH};
+}
+
+function _drawHistCore(ctx,data,lW,lH,ML,MR,MT,MB){
+  const cfg=MODE_CFG[currentMode],isADC=cfg.isADC;
+  const labels=Object.keys(data);
+  const nBins=parseInt(el('histBins').value)||40;
+  const norm=el('histNorm').classList.contains('on');
+  const showKDE=el('histKDE').classList.contains('on');
+  const titleStr=el('plotTitle').value||`${cfg.label} Histogram (${cfg.unit})`;
+  const PW=lW-ML-MR,PH=lH-MT-MB;
+
+  let allVals=[];labels.forEach(l=>allVals=allVals.concat(data[l]));
+  const xDataMin=Math.min(...allVals),xDataMax=Math.max(...allVals);
+  if(xDataMin===xDataMax){ctx.fillStyle='#888';ctx.textAlign='center';ctx.font=`14px ${AF}`;ctx.fillText('All values identical',lW/2,lH/2);return{labels};}
+  const xMin=0,xMax=xDataMax,bwBin=(xMax-xMin)/nBins;
+
+  const hists=labels.map(lbl=>{
+    const vals=data[lbl],counts=new Array(nBins).fill(0);
+    vals.forEach(v=>{const b=Math.min(nBins-1,Math.max(0,Math.floor((v-xMin)/bwBin)));counts[b]++;});
+    return norm?counts.map(c=>c/(vals.length*bwBin)):counts;
+  });
+  const yMax=Math.max(...hists.flatMap(h=>h))*1.14;
+  const toX=v=>ML+(v-xMin)/(xMax-xMin)*PW;
+  const toY=v=>MT+PH-v/yMax*PH;
+  const nYt=6;
+
+  // Grid
+  ctx.strokeStyle='#ececec';ctx.lineWidth=0.7;
+  for(let i=0;i<=nYt;i++){const y=MT+PH*i/nYt;ctx.beginPath();ctx.moveTo(ML,y);ctx.lineTo(ML+PW,y);ctx.stroke();}
+
+  // Bars + KDE
+  labels.forEach((lbl,li)=>{
+    const col=COLORS[li%COLORS.length],alpha=labels.length>1?'33':'55';
+    hists[li].forEach((cnt,bi)=>{
+      const x=toX(xMin+bi*bwBin),bpx=PW/nBins,y=toY(cnt);
+      ctx.fillStyle=col+alpha;ctx.fillRect(x,y,bpx-0.5,MT+PH-y);
+      ctx.strokeStyle=col;ctx.lineWidth=0.6;ctx.strokeRect(x,y,bpx-0.5,MT+PH-y);
+    });
+    if(showKDE){
+      const vals=data[lbl],bwk=1.06*stdev(vals)*Math.pow(vals.length,-0.2);
+      if(bwk<=0)return;
+      const kx=Array.from({length:250},(_,i)=>xMin+(xMax-xMin)*i/249);
+      const ky=kx.map(x=>{let s=0;vals.forEach(v=>{const z=(x-v)/bwk;s+=Math.exp(-.5*z*z);});return s/(vals.length*bwk*Math.sqrt(2*Math.PI));});
+      const kMax=Math.max(...ky),hMax=Math.max(...hists[li]);
+      const sc=norm?1:(kMax>0?hMax/kMax:1);
+      ctx.strokeStyle=col;ctx.lineWidth=2.2;ctx.beginPath();
+      kx.forEach((x,i)=>{const px=toX(x),py=toY(ky[i]*sc);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);});ctx.stroke();
+    }
+  });
+
+  // Axes
+  ctx.strokeStyle='#2a2a2a';ctx.lineWidth=1.6;
+  ctx.beginPath();ctx.moveTo(ML,MT);ctx.lineTo(ML,MT+PH);ctx.lineTo(ML+PW,MT+PH);ctx.stroke();
+
+  // X ticks
+  ctx.fillStyle='#222';ctx.font=`12px ${AF}`;ctx.textAlign='center';ctx.textBaseline='top';
+  const nXT=8;
+  for(let i=0;i<=nXT;i++){
+    const v=xMin+(xMax-xMin)*i/nXT;
+    ctx.strokeStyle='#555';ctx.lineWidth=0.8;ctx.beginPath();ctx.moveTo(toX(v),MT+PH);ctx.lineTo(toX(v),MT+PH+4);ctx.stroke();
+    ctx.fillText(niceAxisNum(v,isADC),toX(v),MT+PH+6);
+  }
+  // Y ticks
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  let maxYtW=0;
+  for(let i=0;i<=nYt;i++){const v=yMax*i/nYt;const w=measureW(Math.round(v).toString(),`12px ${AF}`);if(w>maxYtW)maxYtW=w;}
+  for(let i=0;i<=nYt;i++){
+    const v=yMax*i/nYt,y=toY(v);
+    ctx.strokeStyle='#555';ctx.lineWidth=0.8;ctx.beginPath();ctx.moveTo(ML-4,y);ctx.lineTo(ML,y);ctx.stroke();
+    ctx.fillText(Math.round(v).toString(),ML-6,y);
+  }
+
+  // Y axis label — tight left of tick numbers
+  {
+    const cx=ML-4-5-maxYtW-6;
+    ctx.save();ctx.translate(Math.max(7,cx),MT+PH/2);ctx.rotate(-Math.PI/2);
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`bold 13px ${AF}`;ctx.fillStyle='#111';
+    ctx.fillText(norm?'Probability Density':'Count',0,0);ctx.restore();
+  }
+
+  // X axis label — tight below tick labels
+  // X tick labels drawn at MT+PH+6 (top baseline), 12px font → bottom ~MT+PH+6+13=MT+PH+19; add 5px gap
+  const xTitleY=MT+PH+6+13+5;
+  ctx.font=`bold 13px ${AF}`;ctx.fillStyle='#111';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText(isADC?`ADC (\xD710\u207B\u2074 mm\xB2/s)`:`${cfg.label} (ms)`,ML+PW/2,xTitleY);
+
+  // Title
+  ctx.fillStyle='#111';ctx.font=`bold 15px ${AF}`;ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText(titleStr,lW/2,8);
+
+  return{labels,PW,PH,yMax};
+}
+
+function drawHistogram(data,scale){
+  const cfg=MODE_CFG[currentMode];
+  const labels=Object.keys(data);
+  // Compute ML from Y tick widths
+  const nBins=parseInt(el('histBins').value)||40;
+  const norm=el('histNorm').classList.contains('on');
+  let allVals=[];labels.forEach(l=>allVals=allVals.concat(data[l]));
+  const xMin=0,xMax=Math.max(...allVals),bwBin=(xMax-xMin)/nBins;
+  const hists=labels.map(lbl=>{const vals=data[lbl],counts=new Array(nBins).fill(0);vals.forEach(v=>{const b=Math.min(nBins-1,Math.max(0,Math.floor((v-xMin)/bwBin)));counts[b]++;});return norm?counts.map(c=>c/(vals.length*bwBin)):counts;});
+  const yMax=Math.max(...hists.flatMap(h=>h))*1.14;
+  const nYt=6;let maxYtW=0;
+  for(let i=0;i<=nYt;i++){const w=measureW(Math.round(yMax*i/nYt).toString(),`12px ${AF}`);if(w>maxYtW)maxYtW=w;}
+  const ML=Math.ceil(maxYtW)+26,MR=28,MT=42,MB=52;
+  const lW=1050,lH=500;
+
+  const ctx=setupCanvas('canvas-histogram',lW,lH,scale);
+  el('wrap-histogram').style.maxWidth=lW+'px';
+
+  const{PW,PH}=_drawHistCore(ctx,data,lW,lH,ML,MR,MT,MB)||{PW:lW-ML-MR,PH:lH-MT-MB};
+
+  // Histogram legend overlay (draggable)
+  if(labels.length>1){
+    if(!_histLegPos){
+      let maxLW=0;labels.forEach(lbl=>{const w=measureW(lbl.length>22?lbl.slice(0,22)+'…':lbl,`${_histLegFS}px ${AF}`);if(w>maxLW)maxLW=w;});
+      const legW=14+7+maxLW+9*2;
+      _histLegPos={lx:ML+PW-legW-16,ly:MT+12};
+    }
+    _drawHistLegendCtx(ctx,_histLegPos.lx,_histLegPos.ly,labels,_histLegFS);
+
+    const wrap=el('wrap-histogram');
+    const displayW=wrap.getBoundingClientRect().width||lW;
+    const f=displayW/lW;
+    const initCssX=_histLegPos.lx*f,initCssY=_histLegPos.ly*f;
+
+    makeDragOverlay(wrap,initCssX,initCssY,_histLegFS,
+      (ov,fs)=>{_histLegContent(ov,fs,labels);},
+      (cssX,cssY)=>{
+        const pr=el('wrap-histogram').getBoundingClientRect();
+        const f2=pr.width/lW;
+        _histLegPos={lx:cssX/f2,ly:cssY/f2};
+        const{canvas:off,ctx:octx}=makeOffCtx(lW,lH,scale);
+        _drawHistCore(octx,data,lW,lH,ML,MR,MT,MB);
+        _drawHistLegendCtx(octx,_histLegPos.lx,_histLegPos.ly,labels,_histLegFS);
+        const live=el('canvas-histogram');
+        const lctx=live.getContext('2d');lctx.setTransform(1,0,0,1,0,0);lctx.drawImage(off,0,0);
+      },
+      (fs)=>{
+        _histLegFS=fs;
+        const{canvas:off,ctx:octx}=makeOffCtx(lW,lH,scale);
+        _drawHistCore(octx,data,lW,lH,ML,MR,MT,MB);
+        _drawHistLegendCtx(octx,_histLegPos.lx,_histLegPos.ly,labels,_histLegFS);
+        const live=el('canvas-histogram');
+        const lctx=live.getContext('2d');lctx.setTransform(1,0,0,1,0,0);lctx.drawImage(off,0,0);
+      }
+    );
+    // Store params for save
+    el('canvas-histogram')._histParams={data,lW,lH,ML,MR,MT,MB,scale,labels};
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// STATS BAR + OVERLAY
+// ═══════════════════════════════════════════════════════
+function showStats(data){
+  const sb=el('statsBar'),isADC=MODE_CFG[currentMode].isADC;
+  const fmt=v=>isADC?v.toFixed(3)+' \xD710\u207B\u2074':v.toFixed(2);
+  const lbl=Object.keys(data)[0],d=data[lbl],sorted=[...d].sort((a,b)=>a-b);
+  sb.innerHTML=`
+    <div class="stat-item"><span class="sk">SAMPLE</span><span class="sv">${lbl}</span></div>
+    <div class="stat-item"><span class="sk">n</span><span class="sv">${d.length.toLocaleString()}</span></div>
+    <div class="stat-item"><span class="sk">mean</span><span class="sv">${fmt(d.reduce((a,b)=>a+b,0)/d.length)}</span></div>
+    <div class="stat-item"><span class="sk">median</span><span class="sv">${fmt(pctile(sorted,50))}</span></div>
+    <div class="stat-item"><span class="sk">std</span><span class="sv">${fmt(stdev(d))}</span></div>
+    <div class="stat-item"><span class="sk">Q1</span><span class="sv">${fmt(pctile(sorted,25))}</span></div>
+    <div class="stat-item"><span class="sk">Q3</span><span class="sv">${fmt(pctile(sorted,75))}</span></div>
+    <div class="stat-item"><span class="sk">min</span><span class="sv">${fmt(sorted[0])}</span></div>
+    <div class="stat-item"><span class="sk">max</span><span class="sv">${fmt(sorted[sorted.length-1])}</span></div>
+    ${Object.keys(data).length>1?`<div class="stat-item"><span class="sk">+${Object.keys(data).length-1} more</span></div>`:''}`;
+  sb.style.display='flex';
+  populateStatsOverlay(data);el('statsShowBtn').style.display='none';
+}
+
+let _statsData={};
+function updateStatsOverlay(){
+  const body=el('statsOvBody');if(!Object.keys(_statsData).length)return;
+  const isADC=MODE_CFG[currentMode].isADC;
+  const fmt=v=>isADC?v.toFixed(3)+' \xD710\u207B\u2074':v.toFixed(2);
+  const fs=parseInt(el('statsFontSize').value)||11;body.style.fontSize=fs+'px';
+  let html='';
+  Object.entries(_statsData).forEach(([lbl,d],idx)=>{
+    const sorted=[...d].sort((a,b)=>a-b),mean=d.reduce((a,b)=>a+b,0)/d.length,med=pctile(sorted,50);
+    if(idx>0)html+=`<div style="border-top:1px solid #1c2235;margin:5px 0;"></div>`;
+    html+=`<div style="color:#e8ecf5;font-weight:700;margin-bottom:2px;">${lbl}</div>`;
+    html+=`<div><span style="color:#4a5470;">n </span><span style="color:#e8ecf5;">${d.length.toLocaleString()}</span></div>`;
+    html+=`<div><span style="color:#4a5470;">mean </span><span style="color:#5cffc2;">${fmt(mean)}</span></div>`;
+    html+=`<div><span style="color:#4a5470;">median </span><span style="color:#ffd166;">${fmt(med)}</span></div>`;
+    html+=`<div><span style="color:#4a5470;">std </span><span style="color:#e8ecf5;">${fmt(stdev(d))}</span></div>`;
+    html+=`<div><span style="color:#4a5470;">Q1 </span><span style="color:#e8ecf5;">${fmt(pctile(sorted,25))}</span>&nbsp;&nbsp;<span style="color:#4a5470;">Q3 </span><span style="color:#e8ecf5;">${fmt(pctile(sorted,75))}</span></div>`;
+    html+=`<div><span style="color:#4a5470;">min </span><span style="color:#e8ecf5;">${fmt(sorted[0])}</span>&nbsp;&nbsp;<span style="color:#4a5470;">max </span><span style="color:#e8ecf5;">${fmt(sorted[sorted.length-1])}</span></div>`;
+  });
+  body.innerHTML=html;
+}
+function populateStatsOverlay(data){
+  _statsData=data;updateStatsOverlay();
+  const ov=el('statsOverlay');
+  if(ov.style.display==='none'){
+    const rect=el('canvasArea').getBoundingClientRect(),mr=el('main').getBoundingClientRect();
+    ov.style.right=(mr.right-rect.right+18)+'px';ov.style.top='70px';ov.style.left='';ov.style.display='block';
+  }
+  el('statsShowBtn').style.display='none';
+}
+function toggleStatsOverlay(){el('statsOverlay').style.display='none';el('statsShowBtn').style.display='block';}
+function showStatsOverlay(){if(!Object.keys(_statsData).length)return;updateStatsOverlay();el('statsOverlay').style.display='block';el('statsShowBtn').style.display='none';}
+
+// Stats overlay drag
+(function(){
+  let drag=false,ox=0,oy=0;
+  const ov=()=>el('statsOverlay'),hdr=()=>el('statsOvHeader');
+  document.addEventListener('mousedown',e=>{
+    if(!hdr()||!hdr().contains(e.target))return;
+    if(e.target.tagName==='SELECT'||e.target.title==='Hide overlay')return;
+    drag=true;const r=ov().getBoundingClientRect();ox=e.clientX-r.left;oy=e.clientY-r.top;ov().style.right='';ov().style.bottom='';e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{if(!drag)return;ov().style.left=(e.clientX-ox)+'px';ov().style.top=(e.clientY-oy)+'px';});
+  document.addEventListener('mouseup',()=>{drag=false;});
+})();
+(function(){
+  let res=false,sx=0,sw=0;const r=()=>el('statsOvResize');
+  document.addEventListener('mousedown',e=>{if(!r()||!r().contains(e.target))return;res=true;const rect=el('statsOverlay').getBoundingClientRect();sx=e.clientX;sw=rect.width;e.preventDefault();});
+  document.addEventListener('mousemove',e=>{if(!res)return;const nw=Math.max(140,sw+(e.clientX-sx));el('statsOverlay').style.width=nw+'px';el('statsOverlay').style.maxWidth=nw+'px';});
+  document.addEventListener('mouseup',()=>{res=false;});
+})();
+
+// ═══════════════════════════════════════════════════════
+// SAVE — PNG + TIFF
+// For box plot and histogram: re-render to offscreen canvas
+// so legend position is baked in at current _bpLegPos/_histLegPos
+// ═══════════════════════════════════════════════════════
+function openSaveModal(){el('saveModal').classList.add('open');}
+function closeModal(){el('saveModal').classList.remove('open');}
+function getActiveCanvas(){const wp=document.querySelector('.plot-wrap.active');return wp?wp.querySelector('canvas'):null;}
+function getSaveFilename(ext){return(el('plotTitle').value||`MRI_${currentMode}_${currentPlotType}`).replace(/[^\w\s\-]/g,'_').trim()+'.'+ext;}
+
+function doSave(fmt){
+  closeModal();
+  let canvas;
+
+  if(currentPlotType==='boxplot'){
+    // Re-render to offscreen with current legend pos baked in
+    const bp=el('canvas-boxplot')._bpParams;
+    if(bp){
+      const{data,lW,lH,ML,MR,MT,MB,scale,showMean}=bp;
+      const{canvas:off,ctx:octx}=makeOffCtx(lW,lH,scale);
+      _drawBoxPlotCore(octx,data,lW,lH,ML,MR,MT,MB);
+      if(_bpLegPos)_bpDrawLegendCtx(octx,_bpLegPos.lx,_bpLegPos.ly,showMean,_bpLegFS);
+      canvas=off;
+    } else {canvas=getActiveCanvas();}
+  } else if(currentPlotType==='histogram'){
+    const hp=el('canvas-histogram')._histParams;
+    if(hp&&hp.labels.length>1){
+      const{data,lW,lH,ML,MR,MT,MB,scale,labels}=hp;
+      const{canvas:off,ctx:octx}=makeOffCtx(lW,lH,scale);
+      _drawHistCore(octx,data,lW,lH,ML,MR,MT,MB);
+      if(_histLegPos)_drawHistLegendCtx(octx,_histLegPos.lx,_histLegPos.ly,labels,_histLegFS);
+      canvas=off;
+    } else {canvas=getActiveCanvas();}
+  } else {
+    canvas=getActiveCanvas();
+  }
+
+  if(!canvas){alert('No plot to save.');return;}
+  if(fmt==='png'){
+    const link=document.createElement('a');link.download=getSaveFilename('png');link.href=canvas.toDataURL('image/png');link.click();
+  } else {saveTIFF(canvas);}
+}
+
+function saveTIFF(canvas){
+  const W=canvas.width,H=canvas.height;
+  const flat=document.createElement('canvas');flat.width=W;flat.height=H;
+  const fctx=flat.getContext('2d');fctx.fillStyle='#fff';fctx.fillRect(0,0,W,H);fctx.drawImage(canvas,0,0);
+  const rgba=fctx.getImageData(0,0,W,H).data;
+  const rgb=new Uint8Array(W*H*3);
+  for(let i=0;i<W*H;i++){rgb[i*3]=rgba[i*4];rgb[i*3+1]=rgba[i*4+1];rgb[i*3+2]=rgba[i*4+2];}
+  const nE=10,ifdOff=8,ifdSz=2+nE*12+4,bpsOff=ifdOff+ifdSz,stripOff=bpsOff+6;
+  const buf=new ArrayBuffer(stripOff+rgb.length);
+  const view=new DataView(buf);const u8=new Uint8Array(buf);
+  let p=0;
+  const w16=v=>{view.setUint16(p,v,true);p+=2;};
+  const w32=v=>{view.setUint32(p,v,true);p+=4;};
+  const ifd=(tag,type,count,val)=>{w16(tag);w16(type);w32(count);w32(val);};
+  w16(0x4949);w16(42);w32(ifdOff);w16(nE);
+  ifd(256,4,1,W);ifd(257,4,1,H);ifd(258,3,3,bpsOff);ifd(259,3,1,1);
+  ifd(262,3,1,2);ifd(273,4,1,stripOff);ifd(277,3,1,3);ifd(278,4,1,H);
+  ifd(279,4,1,rgb.length);ifd(284,3,1,1);w32(0);
+  view.setUint16(bpsOff,8,true);view.setUint16(bpsOff+2,8,true);view.setUint16(bpsOff+4,8,true);
+  u8.set(rgb,stripOff);
+  const blob=new Blob([buf],{type:'image/tiff'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');link.download=getSaveFilename('tiff');link.href=url;link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+
+// ═══════════════════════════════════════════════════════
+// HISTOGRAM ZOOM
+// ═══════════════════════════════════════════════════════
+let zoomState={scale:1,offX:0,offY:0,dragging:false,lastX:0,lastY:0};
+function openZoom(){
+  const src=el('canvas-histogram');if(!src||!src.width)return;
+  const ov=el('zoomOverlay');ov.style.display='flex';
+  const zc=el('canvas-zoom');
+  const sc=parseInt(el('dpiSelect').value)||3;
+  const logW=src.width/sc,logH=src.height/sc;
+  zc.width=src.width;zc.height=src.height;
+  const maxW=ov.clientWidth-40,maxH=ov.clientHeight-90;
+  const ratio=Math.min(maxW/logW,maxH/logH,1);
+  zc.style.width=Math.round(logW*ratio)+'px';zc.style.height=Math.round(logH*ratio)+'px';
+  zoomState={scale:1,offX:0,offY:0,dragging:false,lastX:0,lastY:0,logW,logH,src};
+  renderZoom();attachZoomEvents(zc);
+}
+function closeZoom(){el('zoomOverlay').style.display='none';}
+function zoomReset(){zoomState.scale=1;zoomState.offX=0;zoomState.offY=0;renderZoom();}
+function renderZoom(){
+  const{scale,offX,offY,src}=zoomState;const zc=el('canvas-zoom');if(!zc||!src)return;
+  const ctx=zc.getContext('2d');const dpr=parseInt(el('dpiSelect').value)||3;
+  ctx.clearRect(0,0,zc.width,zc.height);ctx.fillStyle='#fff';ctx.fillRect(0,0,zc.width,zc.height);
+  ctx.save();ctx.translate(offX*dpr,offY*dpr);ctx.drawImage(src,0,0,src.width*scale,src.height*scale);ctx.restore();
+}
+function attachZoomEvents(zc){
+  const nz=zc.cloneNode(true);zc.parentNode.replaceChild(nz,zc);
+  const c=document.getElementById('canvas-zoom');
+  c.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const rect=c.getBoundingClientRect(),cssX=e.clientX-rect.left,cssY=e.clientY-rect.top;
+    const{logW,logH}=zoomState,scaleF=e.deltaY<0?1.15:1/1.15;
+    const newScale=Math.max(0.5,Math.min(8,zoomState.scale*scaleF));
+    const fx=cssX/rect.width,fy=cssY/rect.height;
+    zoomState.offX=fx*(1-newScale/zoomState.scale)*logW+zoomState.offX;
+    zoomState.offY=fy*(1-newScale/zoomState.scale)*logH+zoomState.offY;
+    zoomState.scale=newScale;renderZoom();
+  },{passive:false});
+  c.addEventListener('mousedown',e=>{zoomState.dragging=true;zoomState.lastX=e.clientX;zoomState.lastY=e.clientY;c.style.cursor='grabbing';});
+  window.addEventListener('mousemove',e=>{
+    if(!zoomState.dragging)return;
+    const rect=c.getBoundingClientRect(),{logW}=zoomState,ppc=logW/rect.width;
+    zoomState.offX+=(e.clientX-zoomState.lastX)*ppc;zoomState.offY+=(e.clientY-zoomState.lastY)*ppc;
+    zoomState.lastX=e.clientX;zoomState.lastY=e.clientY;renderZoom();
+  });
+  window.addEventListener('mouseup',()=>{zoomState.dragging=false;const c2=document.getElementById('canvas-zoom');if(c2)c2.style.cursor='crosshair';});
+  c.addEventListener('dblclick',zoomReset);
+}
+
+// DPI badge
+el('dpiSelect').addEventListener('change',()=>{el('dpiBadge').textContent=(parseInt(el('dpiSelect').value)||3)*100+' DPI';});
+
+// Init
+setMode('T1');setPlotType('boxplot');
+</script>
+</body>
+</html>
